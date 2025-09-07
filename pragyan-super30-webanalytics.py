@@ -37,7 +37,6 @@ def display_road_traffic_analytics():
     df = generate_simulated_traffic_data()
     st.dataframe(df.head(10))
 
-    # --- Traffic Jam Heatmap ---
     st.markdown("### Traffic Jam Factor Heatmap")
     fig_map = px.scatter_mapbox(
         df,
@@ -53,10 +52,9 @@ def display_road_traffic_analytics():
         height=500,
         title="Higher 'Jam Factor' indicates worse traffic conditions",
     )
-    fig_map.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":40,"l":0,"b":0})
+    fig_map.update_layout(mapbox_style="open-street-map", margin={"r":0, "t":40, "l":0, "b":0})
     st.plotly_chart(fig_map, use_container_width=True)
 
-    # --- Speed Comparison Line Chart ---
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("### Traffic Speed Analysis")
@@ -69,7 +67,6 @@ def display_road_traffic_analytics():
         )
         st.plotly_chart(fig_speed, use_container_width=True)
 
-    # --- Jam Factor Distribution ---
     with col2:
         st.markdown("### Jam Factor Distribution")
         fig_jam = px.histogram(
@@ -81,7 +78,6 @@ def display_road_traffic_analytics():
         )
         st.plotly_chart(fig_jam, use_container_width=True)
 
-    # --- Aggregate Metrics ---
     avg_speed = df["currentSpeed"].mean()
     avg_free_speed = df["freeFlowSpeed"].mean()
     avg_jam = df["jamFactor"].mean()
@@ -93,37 +89,24 @@ def display_road_traffic_analytics():
     st.markdown(f"- Average Jam Factor: **{avg_jam:.2f}**")
     st.markdown(f"- Maximum Jam Factor: **{max_jam:.2f}**")
 
-
 # --- Functions for Wikipedia Article Traffic Analytics ---
 
 def fetch_wikipedia_pageviews(article, start_date, end_date):
-    """
-    Fetches daily pageview data for a Wikipedia article using the Wikimedia API.
-    This API is free and requires no authentication.
-    """
-    headers = {
-        'User-Agent': 'StreamlitApp/1.0 (https://your-app-url.com; your-email@example.com)'
-    }
-    # Format dates for the API URL
+    headers = {'User-Agent': 'StreamlitApp/1.0 (https://your-app-url.com; your-email@example.com)'}
     start_str = start_date.strftime('%Y%m%d')
     end_str = end_date.strftime('%Y%m%d')
-    
-    # Replace spaces with underscores for the article title
     article_formatted = article.replace(' ', '_')
-    
     url = (
         f"https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/"
         f"en.wikipedia/all-access/user/{article_formatted}/daily/{start_str}/{end_str}"
     )
-    
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 404:
-            st.error(f"API Error 404: Not Found. This often means the article '{article}' does not exist on English Wikipedia. Please check the spelling and try again.")
+            st.error(f"Article '{article}' not found on Wikipedia.")
             return None
         response.raise_for_status()
         data = response.json()
-        
         if 'items' in data:
             df = pd.DataFrame(data['items'])
             df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y%m%d00')
@@ -131,25 +114,19 @@ def fetch_wikipedia_pageviews(article, start_date, end_date):
             return df[['date', 'pageviews']]
         else:
             return None
-            
     except requests.RequestException as e:
         st.error(f"API request failed: {e}")
         return None
     except Exception as e:
-        st.error(f"An error occurred while processing data: {e}")
+        st.error(f"Error processing data: {e}")
         return None
 
 def display_wikipedia_analytics():
-    """Displays UI for fetching and showing Wikipedia pageview data."""
     st.markdown("## Wikipedia Article Traffic Analytics")
-    st.info("Analyze the daily pageviews (traffic) for any English Wikipedia article. This uses a free, public API from the Wikimedia Foundation.")
-
-    # --- User Inputs ---
-    article_input = st.text_input("Enter a Wikipedia Article Title or URL (e.g., 'Artificial intelligence')", "Streamlit")
-    
+    st.info("Analyze daily pageviews for English Wikipedia articles using the free Wikimedia API.")
+    article_input = st.text_input("Enter Wikipedia Article Title or URL", "Streamlit")
     today = date.today()
     last_month = today - timedelta(days=30)
-    
     col1, col2 = st.columns(2)
     with col1:
         start_date = st.date_input("Start Date", last_month, max_value=today)
@@ -161,55 +138,48 @@ def display_wikipedia_analytics():
             st.warning("Please enter an article title or URL.")
             return
 
-        # --- Process input to extract article title from a URL ---
         article_title = article_input
         if "en.wikipedia.org/wiki/" in article_input:
-            article_title = article_input.split('/')[-1]
-            article_title = unquote(article_title).replace('_', ' ')
+            article_title = unquote(article_input.split('/')[-1]).replace('_', ' ')
 
         if start_date > end_date:
-            st.warning("Start date cannot be after the end date.")
+            st.warning("Start date cannot be after end date.")
             return
 
-        with st.spinner(f"Fetching pageview data for '{article_title}'..."):
+        with st.spinner(f"Fetching pageviews for '{article_title}'..."):
             views_df = fetch_wikipedia_pageviews(article_title, start_date, end_date)
 
         if views_df is not None and not views_df.empty:
-            st.success(f"Successfully retrieved data for '{article_title}'!")
-            
-            # --- Key Metrics ---
+            st.success(f"Data retrieved for '{article_title}'!")
             total_views = views_df['pageviews'].sum()
             avg_views = views_df['pageviews'].mean()
             max_views_row = views_df.loc[views_df['pageviews'].idxmax()]
-            
+
             st.markdown("### Key Metrics")
             kpi1, kpi2, kpi3 = st.columns(3)
-            kpi1.metric("Total Pageviews", f"{total_views:,.0f}")
-            kpi2.metric("Average Daily Views", f"{avg_views:,.0f}")
-            kpi3.metric("Peak Day Views", f"{max_views_row['pageviews']:,.0f}", f"{max_views_row['date'].strftime('%b %d, %Y')}")
+            kpi1.metric("Total Pageviews", f"{total_views:,}")
+            kpi2.metric("Average Daily Views", f"{avg_views:.0f}")
+            kpi3.metric("Peak Views", f"{max_views_row['pageviews']:,}", max_views_row['date'].strftime('%b %d, %Y'))
 
-            # --- Pageviews Line Chart ---
             st.markdown("### Daily Pageviews Over Time")
             fig = px.line(
                 views_df,
                 x='date',
                 y='pageviews',
                 title=f"Daily Traffic for '{article_title}'",
-                labels={'pageviews': 'Number of Pageviews', 'date': 'Date'}
+                labels={'pageviews': 'Pageviews', 'date': 'Date'}
             )
             fig.update_layout(hovermode="x unified")
             st.plotly_chart(fig, use_container_width=True)
-            
-            # --- Raw Data ---
+
             with st.expander("Show Raw Data"):
                 st.dataframe(views_df)
         else:
-            st.error(f"Could not retrieve or process data for '{article_title}'. Please check the article title and try again.")
+            st.error(f"No data available for '{article_title}'.")
 
 # --- Functions for Website SEO & Traffic Analytics ---
 
 def fetch_website_seo_data(api_key, domain):
-    """Fetches website traffic data from SEO Review Tools API."""
     url = "https://api.seoreviewtools.com/website-traffic-v2"
     params = {"key": api_key, "domain": domain}
     try:
@@ -221,35 +191,31 @@ def fetch_website_seo_data(api_key, domain):
         return None
 
 def display_website_seo_analytics():
-    """Displays UI for fetching and showing website SEO and traffic data."""
     st.markdown("## Website SEO & Traffic Analytics")
-    st.info("Get SEO and traffic insights for any website. Requires a free API key from a service like SEO Review Tools.")
-    
-    api_key = st.text_input("Enter your API Key", type="password")
-    domain = st.text_input("Enter website domain (e.g., 'streamlit.io')")
+    st.info("Provide a free API key from SEO Review Tools and a website domain to get traffic & SEO info.")
+
+    api_key = st.text_input("API Key", type="password")
+    domain = st.text_input("Website Domain (e.g., streamlit.io)")
 
     if st.button("Get Website Analytics"):
         if not api_key or not domain:
-            st.warning("Please provide both an API key and a domain.")
+            st.warning("API key and domain are required.")
             return
 
-        with st.spinner(f"Analyzing '{domain}'..."):
+        with st.spinner(f"Analyzing {domain}..."):
             data = fetch_website_seo_data(api_key, domain)
 
         if data and data.get('success', False):
-            st.success(f"Successfully retrieved data for '{domain}'!")
-            
+            st.success(f"Data retrieved for {domain}!")
+
             metrics = data.get('data', {})
-            
-            # --- Key Metrics & Engagement ---
+
             st.markdown("### Key Metrics & Engagement")
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
             kpi1.metric("Global Rank", f"#{metrics.get('global_rank', 'N/A'):,}")
             kpi2.metric("Monthly Visits", f"{metrics.get('visits', 0):,}")
-            
             bounce_rate = metrics.get('bounce_rate')
             kpi3.metric("Bounce Rate", f"{bounce_rate:.1%}" if bounce_rate is not None else "N/A")
-
             duration = metrics.get('avg_session_duration')
             if duration is not None:
                 mins, secs = divmod(int(duration), 60)
@@ -257,19 +223,20 @@ def display_website_seo_analytics():
             else:
                 kpi4.metric("Avg. Session", "N/A")
 
-            # --- Geo & Device Distribution ---
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("### Traffic by Country")
                 country_data = metrics.get('traffic_country', [])
                 if country_data:
                     country_df = pd.DataFrame(country_data)
-                    fig_map = px.choropleth(country_df, 
-                                            locations="country_code",
-                                            color="traffic_percentage",
-                                            hover_name="country_name",
-                                            color_continuous_scale=px.colors.sequential.Plasma,
-                                            title="Top Countries by Traffic")
+                    fig_map = px.choropleth(
+                        country_df,
+                        locations="country_code",
+                        color="traffic_percentage",
+                        hover_name="country_name",
+                        color_continuous_scale=px.colors.sequential.Plasma,
+                        title="Top Countries by Traffic"
+                    )
                     st.plotly_chart(fig_map, use_container_width=True)
                 else:
                     st.info("No geographic data available.")
@@ -279,17 +246,26 @@ def display_website_seo_analytics():
                 device_data = metrics.get('traffic_device_split', {})
                 if device_data:
                     device_df = pd.DataFrame(list(device_data.items()), columns=['Device', 'Percentage'])
-                    fig_device_pie = px.pie(device_df, values='Percentage', names='Device', title="Traffic Distribution by Device")
+                    fig_device_pie = px.pie(
+                        device_df,
+                        values='Percentage',
+                        names='Device',
+                        title="Traffic Distribution by Device"
+                    )
                     st.plotly_chart(fig_device_pie, use_container_width=True)
                 else:
                     st.info("No device data available.")
-            
-            # --- Traffic Sources ---
+
             st.markdown("### Traffic Sources")
             sources_data = metrics.get('traffic_sources', {})
             if sources_data:
                 sources_df = pd.DataFrame(list(sources_data.items()), columns=['Source', 'Percentage'])
-                fig_sources_pie = px.pie(sources_df, values='Percentage', names='Source', title="Traffic Distribution by Source")
+                fig_sources_pie = px.pie(
+                    sources_df,
+                    values='Percentage',
+                    names='Source',
+                    title="Traffic Distribution by Source"
+                )
                 st.plotly_chart(fig_sources_pie, use_container_width=True)
             else:
                 st.info("No traffic source data available.")
@@ -297,10 +273,9 @@ def display_website_seo_analytics():
             with st.expander("Show Raw API Response"):
                 st.json(data)
         elif data:
-            st.error(f"API returned an error: {data.get('message', 'Unknown error')}")
+            st.error(f"API error: {data.get('message','Unknown error')}")
         else:
-            st.error("Failed to retrieve data. Check your API key and the domain name.")
-
+            st.error("Failed to retrieve data. Check API key and domain.")
 
 # --- Main App ---
 
